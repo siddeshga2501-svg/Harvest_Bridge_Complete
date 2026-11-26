@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: harvest_bridge
+      POSTGRES_USER: harvest
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-harvest_local_only}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U harvest -d harvest_bridge"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://harvest:${POSTGRES_PASSWORD:-harvest_local_only}@db:5432/harvest_bridge
+      SECRET_KEY: ${SECRET_KEY:-change-this-before-deployment}
+      FRONTEND_ORIGINS: http://localhost:5173
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@harvestbridge.demo}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-HarvestDemo!2026}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      OPENWEATHER_API_KEY: ${OPENWEATHER_API_KEY:-}
+      AGMARKNET_API_URL: ${AGMARKNET_API_URL:-}
+      AGMARKNET_API_KEY: ${AGMARKNET_API_KEY:-}
+    ports: ["8000:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports: ["5173:5173"]
+    depends_on: [backend]
+volumes:
+  postgres_data:
